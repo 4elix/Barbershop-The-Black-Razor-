@@ -13,13 +13,27 @@ class CreateTableBasic(SQLBaseConnect):
                 last_name TEXT,
                 age INTEGER,
                 profile_path TEXT,
-                role TEXT CHECK (role IN ('admin', 'client')),
+                role TEXT CHECK (role IN ('admin', 'barber', 'client')),
                 language TEXT,
                 tg_id BIGINT NOT NULL UNIQUE
             );
         '''
         self.manager(sql, commit=True)
-
+    
+    def ctb_history(self):
+        sql = '''
+            CREATE TABLE IF NOT EXISTS history(
+                history_id SERIAL PRIMARY KEY,
+                user_id INTEGER REFERENCES users(user_id) ON DELETE SET NULL,
+                order_service_id INTEGER REFERENCES order_services(order_services_id) ON DELETE SET NULL,
+                arrival_date DATE NOT NULL,
+                arrival_time TIME NOT NULL,
+                status TEXT NOT NULL DEFAULT 'PENDING' CHECK (status IN ('SUCCESS', 'FAILED', 'PENDING')),
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+        '''
+        self.manager(sql, commit=True)
+        
 
 class CreateTableService(SQLBaseConnect):
     def cts_categories(self):
@@ -47,7 +61,7 @@ class CreateTableService(SQLBaseConnect):
     def cts_order_services(self):
         sql = '''
             CREATE TABLE IF NOT EXISTS order_services(
-                os_id SERIAL PRIMARY KEY,
+                order_services_id SERIAL PRIMARY KEY,
                 service_id INTEGER REFERENCES services(service_id) ON DELETE SET NULL,
                 user_id INTEGER REFERENCES users(user_id) ON DELETE SET NULL,
                 total_price NUMERIC(10, 2),
@@ -62,3 +76,21 @@ class DropTableAll(SQLBaseConnect):
     def drop_table(self):
         sql = 'DROP TABLE IF EXISTS users, categories, services, order_services CASCADE;'
         self.manager(sql, commit=True)
+
+
+def start_create_table():
+    ctb = CreateTableBasic()
+    cts = CreateTableService()
+
+    ctb.ctb_users()
+    cts.cts_categories()
+    cts.cts_services()
+    cts.cts_order_services()
+    ctb.ctb_history()
+
+    try:
+        int(input(': '))
+        dt = DropTableAll()
+        dt.drop_table()
+    except ValueError:
+        print('Таблицы были не удаленны!!!')
